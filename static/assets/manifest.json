@@ -1,0 +1,29 @@
+{
+  "name": "灵枢 — AI掌纹溯源",
+  "short_name": "灵枢",
+  "description": "你的手掌，写着你的出厂设置。AI掌纹精灵，每日陪伴。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0a1628",
+  "background_color": "#0a1628",
+  "categories": ["health", "lifestyle"],
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

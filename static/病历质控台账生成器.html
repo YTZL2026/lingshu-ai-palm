@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>辽宁中医嘉和医院 · 病历质控台账生成器</title>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+  :root {
+    --primary: #1a5276; --danger: #c62828; --warn: #e65100;
+    --bg: #f5f7fa; --card: #fff; --border: #d5dce6;
+    --text: #2c3e50; --muted: #7f8c8d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px;
+    line-height: 1.6; min-height: 100vh;
+  }
+
+  /* Header */
+  .toolbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--primary); color: #fff;
+    padding: 10px 20px; display: flex;
+    align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .toolbar h1 { font-size: 18px; font-weight: 600; }
+  .toolbar .subtitle { font-size: 12px; opacity: 0.8; margin-left: 10px; }
+  .btn {
+    padding: 10px 24px; border: none; border-radius: 6px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: all 0.2s;
+  }
+  .btn-export { background: #27ae60; color: #fff; }
+  .btn-export:hover { background: #219a52; }
+  .btn-reset { background: rgba(255,255,255,0.15); color: #fff; margin-right: 8px; }
+  .btn-reset:hover { background: rgba(255,255,255,0.25); }
+
+  /* Main layout */
+  .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
+
+  /* Info card */
+  .info-card {
+    background: var(--card); border-radius: 10px; padding: 16px;
+    margin-bottom: 16px; border: 1px solid var(--border);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .info-card label {
+    font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px;
+  }
+  .info-card select, .info-card input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 14px; font-family: inherit;
+    background: #fafbfc; outline: none; transition: border 0.2s;
+  }
+  .info-card select:focus, .info-card input:focus { border-color: var(--primary); }
+
+  /* Dimension card */
+  .dim-card {
+    background: var(--card); border-radius: 10px; margin-bottom: 14px;
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .dim-header {
+    padding: 10px 16px; font-weight: 700; font-size: 14px;
+    color: #fff; display: flex; align-items: center; gap: 8px;
+  }
+  .dim-header .num { background: rgba(255,255,255,0.2); border-radius: 50%;
+    width: 24px; height: 24px; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; }
+  .dim-1 .dim-header { background: #1a5276; }
+  .dim-2 .dim-header { background: #2471a3; }
+  .dim-3 .dim-header { background: #2e86c1; }
+  .dim-4 .dim-header { background: #3498db; }
+  .dim-5 .dim-header { background: #5dade2; }
+  .dim-6 .dim-header { background: #85c1e9; }
+
+  .dim-body { padding: 12px 16px; }
+  .dim-row {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 6px 0; border-bottom: 1px solid #f0f2f5;
+  }
+  .dim-row:last-child { border-bottom: none; }
+  .dim-item-label {
+    flex: 0 0 320px; font-size: 13px; padding-top: 6px;
+  }
+  .dim-item-label .tag {
+    display: inline-block; font-size: 10px; padding: 1px 6px;
+    border-radius: 3px; margin-left: 6px; vertical-align: middle;
+  }
+  .tag-red { background: #fdecea; color: var(--danger); }
+  .tag-orange { background: #fff3e0; color: var(--warn); }
+
+  .dim-desc {
+    flex: 1; min-width: 0;
+  }
+  .dim-desc textarea {
+    width: 100%; padding: 6px 8px; border: 1px solid var(--border);
+    border-radius: 4px; font-size: 13px; font-family: inherit;
+    resize: vertical; min-height: 32px; outline: none;
+    background: #fafbfc;
+  }
+  .dim-desc textarea:focus { border-color: var(--primary); }
+  .dim-desc textarea.has-issue { border-color: var(--danger); background: #fff5f5; }
+
+  .dim-person {
+    flex: 0 0 100px;
+  }
+  .dim-person input {
+    width: 100%; padding: 6px 8px; border: 1px solid var(--border);
+    border-radius: 4px; font-size: 13px; font-family: inherit;
+    outline: none; background: #fafbfc;
+  }
+  .dim-person input:focus { border-color: var(--primary); }
+
+  /* Veto section */
+  .veto-card {
+    background: #fff5f5; border: 2px solid var(--danger);
+    border-radius: 10px; margin-bottom: 14px; overflow: hidden;
+  }
+  .veto-header {
+    background: var(--danger); color: #fff; padding: 10px 16px;
+    font-weight: 700; font-size: 14px;
+  }
+  .veto-body { padding: 12px 16px; }
+  .veto-item {
+    display: flex; gap: 10px; align-items: center; padding: 5px 0;
+  }
+  .veto-item label {
+    flex: 0 0 340px; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .veto-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+  .veto-item .dim-person { flex: 0 0 120px; }
+  .veto-item .dim-desc { flex: 1; }
+
+  /* Quick tips */
+  .tips-card {
+    background: #fffde7; border: 1px solid #ffe0b2;
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+    font-size: 12px; color: var(--warn);
+  }
+  .tips-card strong { color: var(--danger); }
+
+  /* Summary bar */
+  .summary-bar {
+    position: sticky; bottom: 16px;
+    background: var(--card); border-radius: 10px;
+    padding: 12px 20px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  }
+  .summary-bar .count { font-size: 24px; font-weight: 700; color: var(--primary); }
+  .summary-bar .count.warn { color: var(--danger); }
+
+  /* Ledger table */
+  .ledger-section {
+    background: var(--card); border-radius: 10px;
+    margin-bottom: 16px; border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .ledger-header {
+    padding: 12px 16px; display: flex; align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+  }
+  .ledger-header h3 { font-size: 14px; color: var(--primary); }
+  .ledger-table-wrap { overflow-x: auto; max-height: 400px; overflow-y: auto; }
+  .ledger-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .ledger-table th {
+    background: #1a5276; color: #fff; padding: 8px 6px;
+    text-align: left; position: sticky; top: 0; z-index: 1;
+    white-space: nowrap;
+  }
+  .ledger-table td {
+    padding: 6px; border-bottom: 1px solid #f0f2f5;
+    vertical-align: top;
+  }
+  .ledger-table tr:hover td { background: #fef9e7; }
+  .ledger-table td.editable {
+    cursor: text; background: #fffef5;
+    border-left: 2px solid transparent; border-right: 2px solid transparent;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .ledger-table td.editable:hover { background: #fff9db; border-color: #c9a84c; }
+  .ledger-table td.editable:focus { background: #fffef9; border-color: #1a5276; }
+  .ledger-table .btn-edit {
+    padding: 2px 8px; font-size: 11px; border: none;
+    border-radius: 3px; cursor: pointer;
+    background: #e8f0f8; color: #2471a3;
+    margin-right: 4px;
+  }
+  .ledger-table .btn-edit:hover { background: #d0dce8; }
+  .ledger-table .btn-del {
+    padding: 2px 8px; font-size: 11px; border: none;
+    border-radius: 3px; cursor: pointer;
+    background: #fdecea; color: #c62828;
+  }
+  .ledger-table .btn-del:hover { background: #f8d7da; }
+
+  /* AI 润色按钮 + 历史标签 */
+  .btn-ai {
+    padding: 4px 8px; font-size: 14px; border: 1px solid #c9a84c;
+    border-radius: 4px; background: #fef9e7; cursor: pointer;
+    white-space: nowrap; transition: all 0.2s; flex-shrink: 0;
+  }
+  .btn-ai:hover { background: #c9a84c; color: #fff; }
+  .btn-ai.loading { opacity: 0.5; pointer-events: none; }
+  .history-chips {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px;
+    min-height: 0; max-height: 0; overflow: hidden;
+    transition: max-height 0.3s;
+  }
+  .history-chips.show { max-height: 60px; }
+  .history-chip {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    background: #e8f0f8; color: #2471a3; cursor: pointer;
+    border: 1px solid #d0dce8; white-space: nowrap;
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .history-chip:hover { background: #d0dce8; }
+  .history-chip-more {
+    font-size: 10px; padding: 2px 8px; color: var(--muted);
+    cursor: pointer; white-space: nowrap;
+    text-decoration: underline;
+  }
+
+  @media print {
+    .toolbar, .summary-bar { display: none; }
+    body { background: #fff; }
+  }
+
+  /* === 自动化弹窗 === */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 999;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-box {
+    background: #fff; border-radius: 12px; width: 520px; max-height: 80vh;
+    overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  .modal-header {
+    padding: 14px 20px; border-bottom: 1px solid #e0e0e0;
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: 700; font-size: 16px; color: var(--primary);
+  }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #999; }
+  .modal-close:hover { color: #333; }
+  .modal-body { padding: 16px 20px; }
+  .modal-section { margin-bottom: 18px; }
+  .modal-section h4 { font-size: 13px; color: var(--muted); margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 4px; }
+  .modal-section select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .modal-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .modal-row .btn-sm {
+    padding: 6px 14px; font-size: 12px; border-radius: 5px;
+    border: none; cursor: pointer; font-family: inherit; font-weight: 600;
+    white-space: nowrap;
+  }
+  .btn-primary { background: #8e44ad; color: #fff; }
+  .btn-primary:hover { background: #7d3c98; }
+  .btn-success { background: #27ae60; color: #fff; }
+  .btn-success:hover { background: #219a52; }
+  .btn-info { background: #2471a3; color: #fff; }
+  .btn-info:hover { background: #1a5276; }
+  .btn-warn { background: #e67e22; color: #fff; }
+  .btn-warn:hover { background: #d35400; }
+  .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+  .extracted-file {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; border: 1px solid #e8e8e8; border-radius: 6px;
+    margin-bottom: 4px; font-size: 13px;
+  }
+  .extracted-file .badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    font-weight: 600;
+  }
+  .badge-done { background: #e8f5e9; color: #27ae60; }
+  .badge-pending { background: #fff3e0; color: #e67e22; }
+  .badge-running { background: #e3f2fd; color: #1976d2; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .status-msg { font-size: 12px; color: var(--muted); margin-top: 4px; min-height: 18px; }
+  .status-msg.error { color: var(--danger); }
+  .status-msg.success { color: #27ae60; }
+</style>
+</head>
+<body>
+
+<!-- ========== 顶部工具栏 ========== -->
+<div class="toolbar">
+  <div>
+    <h1>📋 病历质控台账生成器 <span class="subtitle">辽宁中医嘉和医院 · 院级质控</span></h1>
+  </div>
+  <div>
+    <input type="text" id="apiBaseUrl" placeholder="API地址" style="width:280px;padding:6px 10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;outline:none" value="http://localhost:8081">
+    <input type="password" id="apiKey" placeholder="DeepSeek Key(可选)" style="width:180px;padding:6px 10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;outline:none">
+    <button class="btn btn-reset" onclick="resetForm()">🔄 清空</button>
+    <button class="btn" style="background:#c9a84c;color:#fff" onclick="polishAll()" id="btnPolishAll">✨ 一键润色</button>
+    <button class="btn" style="background:#e67e22;color:#fff" onclick="addToLedger()">➕ 添加到台账</button>
+    <button class="btn" style="background:#8e44ad;color:#fff" onclick="openImportModal()">🤖 导入AI结果</button>
+    <button class="btn btn-export" onclick="exportAll()">📥 导出全部</button>
+    <button class="btn btn-reset" style="background:#555;color:#fff;padding:10px 12px" onclick="openSettingsModal()" title="API 设置">⚙️</button>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ========== 基本信息 ========== -->
+<div class="info-card">
+  <div>
+    <label>📅 检查日期</label>
+    <input type="date" id="checkDate">
+  </div>
+  <div>
+    <label>🏥 病区</label>
+    <select id="ward">
+      <option value="">请选择</option>
+      <option>A 病区</option>
+      <option>C 病区</option>
+      <option>D 病区</option>
+    </select>
+  </div>
+  <div>
+    <label>🛏️ 床号</label>
+    <input type="text" id="bedNo" placeholder="如：12">
+  </div>
+  <div>
+    <label>👤 患者姓名</label>
+    <input type="text" id="patientName" placeholder="患者姓名">
+  </div>
+  <div>
+    <label>🔢 住院号</label>
+    <input type="text" id="admitNo" placeholder="住院号">
+  </div>
+  <div>
+    <label>👨‍⚕️ 主管医师</label>
+    <input type="text" id="attendingDoc" placeholder="主管医师姓名">
+  </div>
+  <div>
+    <label>✅ 检查人</label>
+    <input type="text" id="auditor" placeholder="检查人姓名">
+  </div>
+</div>
+
+<!-- ========== 高频提醒 ========== -->
+<div class="tips-card">
+  <strong>💡 填写提示：</strong>
+  在对应维度描述缺陷（留空=该项合格），填写责任人姓名。一票否决项直接勾选。
+  完成后点右上角 <strong>「📥 导出 Excel」</strong> 生成台账。<br>
+  🆕 <strong>支持导入AI分析结果</strong>：先运行 analyze_medical_records.py，再点击 <strong>「🤖 导入AI结果」</strong> 选择 _analysis/ 目录下的 JSON 文件自动填充。
+</div>
+
+<!-- ========== 六大质控维度 ========== -->
+
+<!-- 一、核心时限 -->
+<div class="dim-card dim-1">
+  <div class="dim-header"><span class="num">一</span> 核心时限（必查）</div>
+  <div class="dim-body">
+    <div class="dim-row">
+      <div class="dim-item-label">1. 入院记录 24h 内完成</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空，有缺陷则描述..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">2. 首次病程 8h 内</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">3. 主治查房 48h 内</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">4. 主任查房 72h 内</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">5. 新入院连续3天病程 <span class="tag tag-orange">高频</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">6. 康复初始评定 72h 内 <span class="tag tag-red">必查</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">7. 阶段小结每30天1次</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 二、康复专项 -->
+<div class="dim-card dim-2">
+  <div class="dim-header"><span class="num">二</span> 康复专项（重点）</div>
+  <div class="dim-body">
+    <div class="dim-row">
+      <div class="dim-item-label">1. 标准化量表评定</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">2. 中期评定每4周1次</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">3. 治疗记录单完整 <span class="tag tag-red">重点</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">4. 三单一致</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 三、病程记录 -->
+<div class="dim-card dim-3">
+  <div class="dim-header"><span class="num">三</span> 病程记录质量</div>
+  <div class="dim-body">
+    <div class="dim-row">
+      <div class="dim-item-label">1. 首程有病例特点/诊断依据/鉴别</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">2. 上级查房有分析意见</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">3. 病情变化/异常结果有记录</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">4. 有创操作后即时记录</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">5. 重要事项有患方签名</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">6. 阶段小结体现病情变化 <span class="tag tag-orange">高频</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 四、文书完整性 -->
+<div class="dim-card dim-4">
+  <div class="dim-header"><span class="num">四</span> 文书完整性</div>
+  <div class="dim-body">
+    <div class="dim-row">
+      <div class="dim-item-label">1. 一般项目无空项</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">2. 既往史/个人史/家族史无遗漏</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">3. 体格检查完整+专科查体突出</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">4. 辅助检查结果有序记录</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">5. 辅助检查报告单有患者签名 <span class="tag tag-orange">高频</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">6. 记录有医师亲笔签名</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">7. 病案首页信息完整</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">8. 出院小结按时提交</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 五、知情同意 -->
+<div class="dim-card dim-5">
+  <div class="dim-header"><span class="num">五</span> 知情同意与告知</div>
+  <div class="dim-body">
+    <div class="dim-row">
+      <div class="dim-item-label">1. 授权委托书有效</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">2. 特殊检查/治疗知情同意书齐全</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">3. 操作性/康复治疗风险告知书 <span class="tag tag-red">必查</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">4. 各类告知书齐全</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">5. 告知书有患方签名+日期 <span class="tag tag-orange">高频</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 六、书写规范 -->
+<div class="dim-card dim-6">
+  <div class="dim-header"><span class="num">六</span> 书写规范</div>
+  <div class="dim-body">
+    <div class="dim-row">
+      <div class="dim-item-label">1. 无大段复制粘贴 <span class="tag tag-red">必查</span></div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">2. 修改用双线划改+签名+时间</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">3. 24h制，关键时间至分钟</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="dim-row">
+      <div class="dim-item-label">4. 医学术语规范，无逻辑矛盾</div>
+      <div class="dim-desc"><textarea placeholder="合格则留空..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 一票否决 ========== -->
+<div class="veto-card">
+  <div class="veto-header">⚠️ 一票否决项</div>
+  <div class="veto-body">
+    <div class="veto-item">
+      <label><input type="checkbox" class="veto-cb" data-label="核心记录超时24h以上"> 1. 核心记录超时24h以上（首程/入院记录/手术记录）</label>
+      <div class="dim-desc"><textarea placeholder="具体描述..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="veto-item">
+      <label><input type="checkbox" class="veto-cb" data-label="康复初始评定完全缺失"> 2. 康复初始评定完全缺失</label>
+      <div class="dim-desc"><textarea placeholder="具体描述..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="veto-item">
+      <label><input type="checkbox" class="veto-cb" data-label="知情同意书缺失或伪造签名"> 3. 知情同意书/告知书缺失或伪造签名</label>
+      <div class="dim-desc"><textarea placeholder="具体描述..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="veto-item">
+      <label><input type="checkbox" class="veto-cb" data-label="诊断与治疗方案严重不符"> 4. 主要诊断与治疗方案严重不符</label>
+      <div class="dim-desc"><textarea placeholder="具体描述..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+    <div class="veto-item">
+      <label><input type="checkbox" class="veto-cb" data-label="复制粘贴导致重大错误"> 5. 复制粘贴导致性别/左右侧等重大错误</label>
+      <div class="dim-desc"><textarea placeholder="具体描述..."></textarea></div>
+      <div class="dim-person"><input type="text" placeholder="责任人"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 台账列表（累积） ========== -->
+<div class="ledger-section" id="ledgerSection" style="display:none">
+  <div class="ledger-header">
+    <h3>📊 待导出台账（<span id="ledgerCount">0</span> 份病历 · <span id="ledgerDefectCount">0</span> 条缺陷）<span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px">💡 黄色底格点一下就能改</span></h3>
+    <button class="btn btn-reset" style="background:#c0392b;color:#fff;font-size:12px;padding:6px 14px" onclick="clearLedger()">🗑️ 清空台账</button>
+  </div>
+  <div class="ledger-table-wrap">
+    <table class="ledger-table" id="ledgerTable">
+      <thead>
+        <tr>
+          <th>日期</th><th>病区</th><th>床号</th><th>患者</th><th>住院号</th>
+          <th>主管医师</th><th>维度</th><th>缺陷描述</th><th>责任人</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="ledgerBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== 底部统计栏 ========== -->
+<div class="summary-bar" id="summaryBar">
+  <div>
+    <span style="font-size:14px;color:var(--muted)">本次发现缺陷：</span>
+    <span class="count" id="defectCount">0</span>
+    <span style="font-size:14px;color:var(--muted)"> 条</span>
+    <span style="margin-left:20px;font-size:14px;color:var(--muted)">一票否决：</span>
+    <span class="count warn" id="vetoCount">0</span>
+    <span style="font-size:14px;color:var(--muted)"> 条</span>
+  </div>
+  <button class="btn btn-export" onclick="exportExcel()">📥 导出 Excel 台账</button>
+</div>
+
+</div>
+
+<script>
+// ======================== 台账数据层 ========================
+const ledger = [];
+let ledgerId = 0;
+const HISTORY_KEY = 'mqc_history_v2';
+
+// ======================== 初始化 ========================
+document.addEventListener('DOMContentLoaded', () => {
+  // 恢复上次保存的 API 配置
+  const savedUrl = localStorage.getItem('mqc_api_url');
+  const savedKey = localStorage.getItem('mqc_api_key');
+  if (savedUrl) document.getElementById('apiBaseUrl').value = savedUrl;
+  if (savedKey) document.getElementById('apiKey').value = savedKey;
+  // 监听修改自动保存
+  document.getElementById('apiBaseUrl').addEventListener('change', function(){ localStorage.setItem('mqc_api_url', this.value); });
+  document.getElementById('apiKey').addEventListener('input', function(){ localStorage.setItem('mqc_api_key', this.value); });
+
+  document.getElementById('checkDate').valueAsDate = new Date();
+  injectAIAndHistory();
+});
+
+// ======================== 动态注入 AI按钮 + 历史标签 ========================
+function injectAIAndHistory() {
+  let itemIdx = 0;
+  document.querySelectorAll('.dim-card .dim-row').forEach(row => {
+    const key = `mqc_${itemIdx++}`;
+    row.dataset.key = key;
+    const descDiv = row.querySelector('.dim-desc');
+    const ta = descDiv.querySelector('textarea');
+    if (!ta) return;
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;gap:4px;align-items:flex-start';
+    ta.style.flex = '1';
+    descDiv.insertBefore(wrapper, ta);
+    wrapper.appendChild(ta);
+    const btnAI = document.createElement('button');
+    btnAI.className = 'btn-ai'; btnAI.textContent = '✨';
+    btnAI.title = 'AI润色：口语→专业质控语言';
+    btnAI.onclick = function() { polishAI(this, key); };
+    wrapper.appendChild(btnAI);
+    const chipsDiv = document.createElement('div');
+    chipsDiv.className = 'history-chips';
+    chipsDiv.id = 'chips_' + key;
+    descDiv.appendChild(chipsDiv);
+    ta.addEventListener('focus', () => showHistory(key, ta));
+    ta.addEventListener('blur', () => setTimeout(() => hideHistory(key), 200));
+  });
+}
+
+// ======================== 历史记录 ========================
+function loadHistory() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || {}; } catch(e) { return {}; } }
+function saveHistory(d) { localStorage.setItem(HISTORY_KEY, JSON.stringify(d)); }
+function getItemHistory(key) { return (loadHistory())[key] || []; }
+function addToHistory(key, text) {
+  if (!text || text.length < 3) return;
+  const all = loadHistory();
+  if (!all[key]) all[key] = [];
+  all[key] = all[key].filter(t => t !== text);
+  all[key].unshift(text);
+  if (all[key].length > 15) all[key].length = 15;
+  saveHistory(all);
+}
+function showHistory(key, ta) {
+  const chipsDiv = document.getElementById('chips_' + key);
+  if (!chipsDiv) return;
+  const history = getItemHistory(key);
+  if (history.length === 0) { chipsDiv.classList.remove('show'); return; }
+  const show = history.slice(0, 6);
+  chipsDiv.innerHTML = show.map((t, i) =>
+    `<span class="history-chip" onclick="pickHistory('${key}',${i},this)" title="${t.replace(/"/g,'&quot;')}">${t.length>18?t.slice(0,16)+'…':t}</span>`
+  ).join('') + (history.length > 6 ? `<span class="history-chip-more" onclick="showAllHistory('${key}')">+${history.length-6}</span>` : '');
+  chipsDiv.classList.add('show');
+}
+function hideHistory(key) { const d = document.getElementById('chips_'+key); if(d) d.classList.remove('show'); }
+function pickHistory(key, idx, el) {
+  const text = getItemHistory(key)[idx];
+  if (!text) return;
+  const ta = el.closest('.dim-desc').querySelector('textarea');
+  if (ta) { ta.value = text; ta.focus(); updateCounts(); }
+}
+function showAllHistory(key) {
+  const h = getItemHistory(key);
+  const n = prompt('共'+h.length+'条，输入序号(1-'+h.length+')：\n'+h.map((t,i)=>(i+1)+'. '+t.slice(0,60)).join('\n'));
+  if (n && h[parseInt(n)-1]) {
+    const ta = document.querySelector('[data-key="'+key+'"] textarea');
+    if (ta) { ta.value = h[parseInt(n)-1]; ta.focus(); updateCounts(); }
+  }
+}
+
+// ======================== AI 润色引擎 ========================
+function getApiConfig() {
+  const base = document.getElementById('apiBaseUrl').value.replace(/\/$/, '') || 'http://localhost:8080';
+  const key = document.getElementById('apiKey').value.trim();
+  return { base, key };
+}
+
+async function callPolishAPI(rawText) {
+  const { base, key } = getApiConfig();
+
+  // 方案1：调用灵枢专用润色接口 /api/polish（不受灵枢人设影响）
+  try {
+    const resp = await fetch(base + '/api/polish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ text: rawText })
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.polished) return data.polished;
+    }
+  } catch(e) { console.log('灵枢润色API不可达，尝试直连DeepSeek...'); }
+
+  // 方案2：直连 DeepSeek API
+  if (key) {
+    try {
+      const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [
+            { role: 'system', content: '你是病历质控文字润色工具。把用户输入改写为一句专业客观的质控语言，直接输出，不加任何评论问候emoji。保持原意的紧迫感，不过度委婉。' },
+            { role: 'user', content: '润色：' + rawText }
+          ],
+          max_tokens: 200,
+          temperature: 0.3
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.choices && data.choices[0]) return data.choices[0].message.content.trim();
+      }
+    } catch(e) { console.log('DeepSeek直连失败:', e); }
+  }
+
+  return null;
+}
+
+// ======================== 一键润色全部 ========================
+async function polishAll() {
+  const allTA = [...document.querySelectorAll('.dim-card textarea')].filter(ta => ta.value.trim());
+  if (allTA.length === 0) { alert('没有已填写的内容需要润色'); return; }
+  if (!confirm(`将对 ${allTA.length} 项内容进行 AI 润色，确定？`)) return;
+
+  // 先检测 API 是否可用
+  const testResult = await callPolishAPI('测试');
+  if (!testResult) {
+    alert('❌ AI润色不可用：无法连接灵枢后端，也未配置 DeepSeek Key。\n\n解决方案：\n1. 启动灵枢(python main.py)并确保API地址正确\n2. 或在顶部输入框填入 DeepSeek API Key');
+    return;
+  }
+
+  const btn = document.getElementById('btnPolishAll');
+  const orig = btn.textContent;
+  btn.textContent = `⏳ 0/${allTA.length}`; btn.disabled = true;
+
+  for (let i = 0; i < allTA.length; i++) {
+    const ta = allTA[i];
+    btn.textContent = `⏳ ${i+1}/${allTA.length}`;
+    const polished = await callPolishAPI(ta.value.trim());
+    if (polished) { ta.value = polished; }
+    else { ta.value = '需关注：' + ta.value.trim() + '，建议完善相关记录。（⚠️ API不可达，此为本地降级）'; }
+  }
+  btn.textContent = orig; btn.disabled = false;
+  updateCounts();
+}
+
+// ======================== AI 润色单个 ========================
+async function polishAI(btn, key) {
+  const ta = btn.parentElement.querySelector('textarea');
+  const raw = ta.value.trim();
+  if (!raw) { alert('请先填写内容再润色'); return; }
+  btn.textContent = '⏳'; btn.classList.add('loading');
+  const polished = await callPolishAPI(raw);
+  if (polished) { ta.value = polished; }
+  else { alert('❌ 润色失败：API 不可达。请检查顶部 API 地址是否正确，或填入 DeepSeek Key。'); }
+  btn.textContent = '✨'; btn.classList.remove('loading');
+  updateCounts();
+}
+
+// ======================== 添加到台账时自动保存历史 ========================
+const _origAddToLedger = addToLedger;
+addToLedger = function() {
+  saveCurrentToHistory();
+  return _origAddToLedger();
+};
+function saveCurrentToHistory() {
+  document.querySelectorAll('.dim-card .dim-row').forEach(row => {
+    const key = row.dataset.key;
+    const ta = row.querySelector('textarea');
+    if (ta && ta.value.trim()) addToHistory(key, ta.value.trim());
+  });
+}
+
+// ======================== 实时统计（表单内） ========================
+function updateCounts() {
+  const dimTextareas = document.querySelectorAll('.dim-card textarea');
+  let defectCount = 0;
+  dimTextareas.forEach(ta => { if (ta.value.trim()) defectCount++; });
+  let vetoCount = 0;
+  document.querySelectorAll('.veto-cb').forEach(cb => { if (cb.checked) vetoCount++; });
+  document.getElementById('defectCount').textContent = defectCount;
+  document.getElementById('vetoCount').textContent = vetoCount;
+  dimTextareas.forEach(ta => {
+    if (ta.value.trim()) ta.classList.add('has-issue');
+    else ta.classList.remove('has-issue');
+  });
+}
+document.querySelectorAll('textarea, .veto-cb').forEach(el => {
+  el.addEventListener('input', updateCounts);
+  el.addEventListener('change', updateCounts);
+});
+
+// ======================== 文本相似度匹配 ========================
+function textSimilarity(a, b) {
+  // 规范化：去数字、标点、空格
+  const norm = s => s.replace(/[\d\.\s、，,（）()【】\[\]\/\-]/g, '').toLowerCase();
+  const na = norm(a);
+  const nb = norm(b);
+  if (!na || !nb) return 0;
+  // 包含关系
+  if (na.includes(nb) || nb.includes(na)) return 0.9;
+  // 公共字符比例
+  let common = 0;
+  const setB = new Set(nb.split(''));
+  for (const c of na) { if (setB.has(c)) common++; }
+  return common / Math.max(na.length, nb.length);
+}
+
+// ======================== 🤖 导入AI分析结果 ========================
+function importAIResults(input) {
+  const files = input.files;
+  if (!files.length) return;
+
+  // 读取所有选中文件
+  const readers = [];
+  for (const file of files) {
+    readers.push(new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const json = JSON.parse(e.target.result);
+          resolve(json);
+        } catch(err) { resolve(null); }
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    }));
+  }
+
+  Promise.all(readers).then(results => {
+    const valid = results.filter(Boolean);
+    if (valid.length === 0) {
+      alert('❌ 未找到有效的分析结果 JSON 文件。\n请确保选择了 _analysis/ 目录下的 *_analysis.json 文件。');
+      return;
+    }
+
+    let analysis;
+    if (valid.length === 1) {
+      analysis = valid[0];
+    } else {
+      // 多文件时让用户选择导入哪一份
+      const names = valid.map(a => `${a.patient_name || '?'} (${a.ward || '?'}病区) - ${(a.defects||[]).length}条缺陷`);
+      const choice = prompt(`找到 ${valid.length} 份分析结果，输入序号选择导入哪份：\n` +
+        names.map((n, i) => `${i + 1}. ${n}`).join('\n') +
+        '\n\n或输入 0 全部导入');
+      const idx = parseInt(choice);
+      if (isNaN(idx) || idx < 0 || idx > valid.length) return;
+      if (idx === 0) {
+        // 全部导入：第一份填表单，其余直接加台账
+        analysis = valid[0];
+        for (let i = 1; i < valid.length; i++) {
+          fillFormFromAnalysis(valid[i], true); // skipConfirm = true
+        }
+        alert(`已导入第 1 份到表单（${analysis.patient_name}），其余 ${valid.length - 1} 份已自动加入台账。`);
+      } else {
+        analysis = valid[idx - 1];
+      }
+    }
+
+    if (analysis) fillFormFromAnalysis(analysis);
+  });
+
+  // 重置 input 以允许重复选择同一文件
+  input.value = '';
+}
+
+function fillFormFromAnalysis(analysis, skipConfirm) {
+  // 1. 填充基本信息
+  if (analysis.patient_name) document.getElementById('patientName').value = analysis.patient_name;
+  if (analysis.admit_no) document.getElementById('admitNo').value = analysis.admit_no;
+  if (analysis.ward) {
+    const wardSelect = document.getElementById('ward');
+    const w = analysis.ward.replace(/[^A-Za-z]/g, '');
+    for (let i = 0; i < wardSelect.options.length; i++) {
+      if (wardSelect.options[i].text.includes(w + ' 病区') || wardSelect.options[i].text.includes(w + '病区')) {
+        wardSelect.selectedIndex = i;
+        break;
+      }
+    }
+  }
+  if (analysis.attending_doctor) document.getElementById('attendingDoc').value = analysis.attending_doctor;
+
+  // 2. 逐条缺陷 → 匹配质控维度 + 检查项
+  const dimCards = document.querySelectorAll('.dim-card');
+  const defects = analysis.defects || [];
+  let matchedCount = 0;
+
+  defects.forEach(defect => {
+    // 找对应维度卡片（用 .num 里的中文数字 一~六 精准匹配）
+    let targetCard = null;
+    const dimNum = defect.dimension.match(/[一二三四五六]/)?.[0];
+    dimCards.forEach(card => {
+      const numEl = card.querySelector('.dim-header .num');
+      if (numEl && dimNum && numEl.textContent.trim() === dimNum) {
+        targetCard = card;
+      }
+    });
+    if (!targetCard) return;
+
+    // 在卡片内找最匹配的 dim-row
+    const rows = targetCard.querySelectorAll('.dim-row');
+    let bestRow = null, bestScore = 0;
+    rows.forEach(row => {
+      const label = row.querySelector('.dim-item-label');
+      if (!label) return;
+      // 用标签纯文本（去除 tag 等子元素）做匹配
+      const labelText = (label.childNodes[0]?.textContent || label.textContent).replace(/\s+/g, ' ').trim();
+      const score = textSimilarity(defect.item, labelText);
+      if (score > bestScore) { bestScore = score; bestRow = row; }
+    });
+
+    if (bestRow && bestScore > 0.20) {
+      const ta = bestRow.querySelector('textarea');
+      const personInput = bestRow.querySelector('.dim-person input');
+      if (ta) ta.value = defect.description;
+      if (personInput && defect.responsible && defect.responsible !== '待确认') {
+        personInput.value = defect.responsible;
+      }
+      matchedCount++;
+    }
+  });
+
+  // 3. 一票否决项
+  const vetoItems = analysis.veto_items || [];
+  let vetoMatched = 0;
+  document.querySelectorAll('.veto-item').forEach(item => {
+    const cb = item.querySelector('.veto-cb');
+    if (!cb) return;
+    const labelText = (cb.dataset.label || '').replace(/\s+/g, '');
+    vetoItems.forEach(v => {
+      const vNorm = v.replace(/\s+/g, '');
+      if (labelText.includes(vNorm) || vNorm.includes(labelText)) {
+        cb.checked = true;
+        vetoMatched++;
+      }
+    });
+  });
+
+  updateCounts();
+
+  if (skipConfirm) {
+    // 自动加入台账
+    addToLedger();
+  } else {
+    const passStatus = analysis.pass ? '✅ 通过' : '⚠️ 未通过';
+    alert(`🤖 已导入 AI 分析结果：\n\n` +
+      `患者：${analysis.patient_name || '?'}\n` +
+      `病区：${analysis.ward || '?'}\n` +
+      `主管医师：${analysis.attending_doctor || '?'}\n` +
+      `结果：${passStatus}\n` +
+      `缺陷：${defects.length} 条（已匹配 ${matchedCount} 项到表单）\n` +
+      `一票否决：${vetoItems.length} 条（已匹配 ${vetoMatched} 项）\n\n` +
+      `📌 请人工复核后点击「添加到台账」→「导出全部」。`);
+  }
+}
+
+// ======================== 提取表单中当前患者的缺陷 ========================
+function collectCurrentDefects() {
+  const ward = document.getElementById('ward').value || '未选病区';
+  const bedNo = document.getElementById('bedNo').value || '';
+  const patientName = document.getElementById('patientName').value || '未填姓名';
+  const admitNo = document.getElementById('admitNo').value || '未填';
+  const attendingDoc = document.getElementById('attendingDoc').value || '';
+  const auditor = document.getElementById('auditor').value || '';
+  const checkDate = document.getElementById('checkDate').value || '';
+
+  const dimNames = ['一、核心时限','二、康复专项','三、病程记录质量','四、文书完整性','五、知情同意与告知','六、书写规范'];
+  const dimCards = document.querySelectorAll('.dim-card');
+  const rows = [];
+
+  dimCards.forEach((card, i) => {
+    card.querySelectorAll('.dim-row').forEach(row => {
+      const label = row.querySelector('.dim-item-label').textContent.replace(/\s+/g,' ').trim();
+      const desc = row.querySelector('textarea').value.trim();
+      const person = row.querySelector('.dim-person input').value.trim();
+      if (desc) {
+        rows.push({ 检查日期: checkDate, 病区: ward, 床号: bedNo, 患者姓名: patientName,
+          住院号: admitNo, 主管医师: attendingDoc, 检查人: auditor,
+          质控维度: dimNames[i], 检查项: label, 缺陷描述: desc, 责任人: person });
+      }
+    });
+  });
+
+  // 一票否决
+  document.querySelectorAll('.veto-item').forEach(item => {
+    const cb = item.querySelector('.veto-cb');
+    if (!cb.checked) return;
+    const label = cb.dataset.label || '';
+    const desc = item.querySelector('textarea').value.trim();
+    const person = item.querySelector('.dim-person input').value.trim();
+    rows.push({ 检查日期: checkDate, 病区: ward, 床号: bedNo, 患者姓名: patientName,
+      住院号: admitNo, 主管医师: attendingDoc, 检查人: auditor,
+      质控维度: '⚠️ 一票否决', 检查项: label, 缺陷描述: desc || '已触及', 责任人: person });
+  });
+
+  return { rows, ward, patientName };
+}
+
+// ======================== 添加到台账（同住院号自动合并） ========================
+function addToLedger() {
+  const { rows } = collectCurrentDefects();
+  const admitNo = document.getElementById('admitNo').value.trim();
+  if (rows.length === 0) {
+    alert('未发现缺陷项。如果该病历完全合格，请在任意维度备注"全查合格"后再添加。');
+    return;
+  }
+  // 同住院号 → 合并（追加新缺陷，已有同检查项则标注"补充"）
+  if (admitNo) {
+    const existing = ledger.filter(r => r.住院号 === admitNo);
+    if (existing.length > 0) {
+      rows.forEach(r => {
+        const dup = existing.find(e => e.检查项 === r.检查项 && e.质控维度 === r.质控维度);
+        if (dup) {
+          dup.缺陷描述 = dup.缺陷描述 + '；补充：' + r.缺陷描述;
+          if (r.责任人) dup.责任人 = dup.责任人 + '、' + r.责任人;
+        } else {
+          r._id = ++ledgerId; ledger.push(r);
+        }
+      });
+      renderLedger();
+      resetForm();
+      alert(`已合并到住院号 ${admitNo} 的现有记录（新增 ${rows.filter(r => !existing.find(e => e.检查项 === r.检查项 && e.质控维度 === r.质控维度)).length} 项，补充 ${rows.length - rows.filter(r => !existing.find(e => e.检查项 === r.检查项 && e.质控维度 === r.质控维度)).length} 项）`);
+      return;
+    }
+  }
+  // 新患者
+  rows.forEach(r => { r._id = ++ledgerId; ledger.push(r); });
+  renderLedger();
+  resetForm();
+  document.getElementById('ledgerSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ======================== 渲染台账表格（可编辑） ========================
+function renderLedger() {
+  const section = document.getElementById('ledgerSection');
+  const tbody = document.getElementById('ledgerBody');
+  if (ledger.length === 0) {
+    section.style.display = 'none';
+  } else {
+    section.style.display = 'block';
+    const fields = ['检查日期','病区','床号','患者姓名','住院号','主管医师','质控维度','检查项','缺陷描述','责任人'];
+    let html = '';
+    ledger.forEach((r, idx) => {
+      html += `<tr data-idx="${idx}">`;
+      fields.forEach(f => {
+        const val = r[f] || '';
+        const w = (f === '缺陷描述') ? 'max-width:200px;min-width:120px' : (f === '检查项' ? 'max-width:180px;min-width:100px' : '');
+        html += `<td contenteditable="true" class="editable" data-field="${f}" data-idx="${idx}"
+          title="点击修改" style="${w}">${val}</td>`;
+      });
+      html += `<td><button class="btn-del" onclick="removeLedgerItem(${r._id})">✕</button></td></tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+  document.getElementById('ledgerCount').textContent = new Set(ledger.map(r => r.患者姓名 + r.住院号)).size;
+  document.getElementById('ledgerDefectCount').textContent = ledger.length;
+}
+
+// ======================== 单元格编辑同步 ========================
+function onCellEdit(td) {
+  const idx = parseInt(td.dataset.idx);
+  const field = td.dataset.field;
+  if (idx >= 0 && idx < ledger.length) {
+    ledger[idx][field] = td.textContent.trim();
+  }
+}
+
+// ======================== 删除台账中的一条 ========================
+function removeLedgerItem(id) {
+  if (!confirm('删除这条缺陷记录？')) return;
+  const idx = ledger.findIndex(r => r._id === id);
+  if (idx >= 0) ledger.splice(idx, 1);
+  renderLedger();
+}
+
+// ======================== 清空台账 ========================
+function clearLedger() {
+  if (!confirm('确定清空全部台账记录？此操作不可撤销。')) return;
+  ledger.length = 0;
+  renderLedger();
+}
+
+// ======================== 清空表单（保留台账） ========================
+function resetForm() {
+  document.querySelectorAll('textarea').forEach(ta => ta.value = '');
+  document.querySelectorAll('.veto-cb').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.dim-person input').forEach(inp => inp.value = '');
+  document.getElementById('bedNo').value = '';
+  document.getElementById('patientName').value = '';
+  document.getElementById('admitNo').value = '';
+  document.getElementById('attendingDoc').value = '';
+  document.getElementById('ward').selectedIndex = 0;
+  updateCounts();
+}
+
+// ======================== 导出全部 ========================
+async function exportAll() {
+  let allRows = [...ledger];
+  if (allRows.length === 0) {
+    const { rows } = collectCurrentDefects();
+    if (rows.length === 0) { alert('台账为空，请先添加缺陷到台账'); return; }
+    if (!confirm('台账为空，直接导出当前表单内容？')) return;
+    allRows = rows;
+  }
+
+  const ExcelJS = window.ExcelJS;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('质控台账明细');
+
+  // ====== 颜色定义 ======
+  const GREEN_DARK = '1B5E20';   // 深绿
+  const GREEN_MID  = '2E7D32';   // 中绿
+  const GREEN_LIGHT = 'C8E6C9';  // 浅绿
+  const GREEN_BG   = 'E8F5E9';   // 极浅绿背景
+  const WHITE = 'FFFFFF';
+  const BLACK = '1A1A1A';
+  const GRAY  = '757575';
+
+  // ====== 列定义 ======
+  const cols = ['检查日期','病区','床号','患者姓名','住院号','主管医师','检查人','质控维度','检查项','缺陷描述','责任人'];
+  const colWidths = [12, 8, 6, 10, 14, 10, 10, 18, 32, 40, 10];
+
+  // 设置列宽
+  cols.forEach((_, i) => { ws.getColumn(i + 1).width = colWidths[i]; });
+
+  let row = 1;
+
+  // ====== 标题区（深绿背景） ======
+  ws.mergeCells(row, 1, row, 11);
+  const titleCell = ws.getCell(row, 1);
+  titleCell.value = '辽宁中医嘉和医院 · 病历质控台账';
+  titleCell.font = { bold: true, size: 16, color: { argb: WHITE } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_DARK } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(row).height = 36; row++;
+
+  // 副标题
+  ws.mergeCells(row, 1, row, 11);
+  const subCell = ws.getCell(row, 1);
+  const now = new Date();
+  subCell.value = `导出时间：${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}  |  共 ${allRows.length} 条缺陷  |  A / C / D 病区  |  院级质控`;
+  subCell.font = { size: 9, color: { argb: GRAY } };
+  subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_LIGHT } };
+  subCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(row).height = 22; row++;
+
+  // 空行
+  ws.getRow(row).height = 8; row++;
+
+  // ====== 表头（中绿背景 + 白色粗体） ======
+  cols.forEach((col, i) => {
+    const cell = ws.getCell(row, i + 1);
+    cell.value = col;
+    cell.font = { bold: true, size: 10, color: { argb: WHITE } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_MID } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: GREEN_DARK } },
+      bottom: { style: 'thin', color: { argb: GREEN_DARK } },
+      left: { style: 'thin', color: { argb: GREEN_DARK } },
+      right: { style: 'thin', color: { argb: GREEN_DARK } }
+    };
+  });
+  ws.getRow(row).height = 22; row++;
+
+  // ====== 数据行（交替浅绿背景） ======
+  allRows.forEach((r, idx) => {
+    cols.forEach((col, i) => {
+      const cell = ws.getCell(row, i + 1);
+      cell.value = r[col] || '';
+      cell.font = { size: 10 };
+      cell.alignment = { vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: GREEN_LIGHT } },
+        bottom: { style: 'thin', color: { argb: GREEN_LIGHT } },
+        left: { style: 'thin', color: { argb: GREEN_LIGHT } },
+        right: { style: 'thin', color: { argb: GREEN_LIGHT } }
+      };
+      // 一票否决行标红
+      if (r.质控维度 === '⚠️ 一票否决') {
+        cell.font = { size: 10, color: { argb: 'C62828' }, bold: true };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5' } };
+      } else if (idx % 2 === 1) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_BG } };
+      }
+    });
+    ws.getRow(row).height = Math.max(20, Math.ceil((r.缺陷描述 || '').length / 50) * 16);
+    row++;
+  });
+
+  // 空行
+  ws.getRow(row).height = 8; row++;
+
+  // ====== 汇总区 ======
+  const patientSet = new Set(allRows.map(r => r.患者姓名 + r.住院号));
+  const vetoCount = allRows.filter(r => r.质控维度 === '⚠️ 一票否决').length;
+
+  const footerData = [
+    ['', '📊 汇总统计', '', '', '', '', '', '', '', '', ''],
+    ['', `涉及病区：${[...new Set(allRows.map(r => r.病区))].join('、')}`, '', '', '', '', '', '', '', '', ''],
+    ['', `检查病历：${patientSet.size} 份`, '', '', '', '', '', '', '', '', ''],
+    ['', `缺陷总数：${allRows.length} 条`, '', '', '', '', '', '', '', '', ''],
+    ['', `一票否决：${vetoCount} 条`, '', '', '', '', '', '', '', '', ''],
+  ];
+  footerData.forEach(fr => {
+    ws.getCell(row, 2).value = fr[1];
+    ws.getCell(row, 2).font = { size: 10, bold: true, color: { argb: GREEN_DARK } };
+    ws.getCell(row, 2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_BG } };
+    ws.mergeCells(row, 2, row, 5);
+    ws.getRow(row).height = 20; row++;
+  });
+
+  // 按维度统计
+  ws.getRow(row).height = 8; row++;
+  const dimCount = {};
+  allRows.forEach(r => { dimCount[r.质控维度] = (dimCount[r.质控维度] || 0) + 1; });
+  for (const [dim, count] of Object.entries(dimCount)) {
+    ws.getCell(row, 2).value = `${dim}：${count} 条`;
+    ws.getCell(row, 2).font = { size: 9, color: { argb: GRAY } };
+    ws.mergeCells(row, 2, row, 5);
+    ws.getRow(row).height = 18; row++;
+  }
+
+  // ====== 页脚 ======
+  ws.getRow(row).height = 8; row++;
+  ws.mergeCells(row, 1, row, 11);
+  const footerCell = ws.getCell(row, 1);
+  footerCell.value = '辽宁中医嘉和医院 · 医务科/医保办 · 病历质控台账';
+  footerCell.font = { size: 8, color: { argb: GRAY }, italic: true };
+  footerCell.alignment = { horizontal: 'center' };
+
+  // ====== Sheet 2: 汇总 ======
+  const ws2 = wb.addWorksheet('汇总统计');
+  ws2.getColumn(1).width = 30; ws2.getColumn(2).width = 40;
+  let r2 = 1;
+  ws2.mergeCells(r2, 1, r2, 2);
+  const s2Title = ws2.getCell(r2, 1);
+  s2Title.value = '辽宁中医嘉和医院 · 病历质控台账汇总';
+  s2Title.font = { bold: true, size: 14, color: { argb: WHITE } };
+  s2Title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_DARK } };
+  s2Title.alignment = { horizontal: 'center' };
+  ws2.getRow(r2).height = 30; r2 += 2;
+
+  const summaryItems = [
+    ['导出时间', now.toLocaleString()],
+    ['涉及病区', [...new Set(allRows.map(r => r.病区))].join('、')],
+    ['检查病历份数', patientSet.size + ' 份'],
+    ['缺陷总数', allRows.length + ' 条'],
+    ['一票否决', vetoCount + ' 条'],
+    ['', ''],
+    ['—— 按维度统计 ——', ''],
+  ];
+  for (const [dim, count] of Object.entries(dimCount)) {
+    summaryItems.push([dim, count + ' 条']);
+  }
+  summaryItems.push(['', '']);
+  summaryItems.push(['—— 按责任人统计 ——', '']);
+  const personCount = {};
+  allRows.forEach(r => { if (r.责任人) { personCount[r.责任人] = (personCount[r.责任人] || 0) + 1; } });
+  for (const [person, count] of Object.entries(personCount)) {
+    summaryItems.push([person, count + ' 条']);
+  }
+
+  summaryItems.forEach(([k, v]) => {
+    const c1 = ws2.getCell(r2, 1); c1.value = k;
+    c1.font = { size: 11, bold: k.startsWith('——') };
+    const c2 = ws2.getCell(r2, 2); c2.value = v;
+    c2.font = { size: 11 };
+    if (r2 % 2 === 0) { c1.fill = c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_BG } }; }
+    r2++;
+  });
+
+  // 下载
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `病历质控台账_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ======================== 自动化弹窗 & API 交互 ========================
+function getApiBase() {
+  return document.getElementById('apiBaseUrl').value.replace(/\/$/, '') || 'http://localhost:8081';
+}
+
+let _searchData = null;
+
+function openImportModal() {
+  document.getElementById('importModal').classList.remove('hidden');
+  doGlobalSearch();
+}
+
+async function doGlobalSearch() {
+  const status = document.getElementById('searchStatus');
+  const btn = document.getElementById('btnSearch');
+  status.textContent = '搜索中...'; status.className = 'status-msg';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(getApiBase() + '/api/search');
+    _searchData = await resp.json();
+    renderSearchResults(_searchData);
+    status.textContent = `找到 ${_searchData.xps.length} XPS / ${_searchData.txt.length} 文本 / ${_searchData.json.length} JSON`;
+    status.className = 'status-msg success';
+  } catch(e) {
+    status.textContent = '搜索失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+  btn.disabled = false;
+}
+
+function renderSearchResults(data) {
+  document.getElementById('searchResults').style.display = 'block';
+
+  // XPS
+  document.getElementById('xpsCount').textContent = `(${data.xps.length})`;
+  let html = '';
+  data.xps.forEach(f => {
+    html += `<div class="extracted-file"><span>📑 ${f.name}</span><span style="font-size:11px;color:var(--muted)">${f.path}</span>
+      <button class="btn-sm btn-warn" style="padding:2px 8px;font-size:11px" onclick="extractByPath('${f.path.replace(/'/g,"\\'")}')">提取</button></div>`;
+  });
+  document.getElementById('xpsResults').innerHTML = html || '<span style="font-size:12px;color:var(--muted)">未找到 XPS 文件</span>';
+
+  // TXT
+  document.getElementById('txtCount').textContent = `(${data.txt.length})`;
+  html = '';
+  data.txt.forEach(f => {
+    html += `<div class="extracted-file"><span>📄 ${f.name}</span><span style="font-size:11px;color:var(--muted)">${f.path}</span>
+      <button class="btn-sm btn-info" style="padding:2px 8px;font-size:11px" onclick="analyzeByPath('${f.path.replace(/'/g,"\\'")}')">分析</button></div>`;
+  });
+  document.getElementById('txtResults').innerHTML = html || '<span style="font-size:12px;color:var(--muted)">未找到文本文件</span>';
+
+  // JSON — with checkboxes
+  document.getElementById('jsonCount').textContent = `(${data.json.length})`;
+  html = '';
+  data.json.forEach((f, i) => {
+    html += `<label class="extracted-file" style="cursor:pointer">
+      <input type="checkbox" class="json-check" data-idx="${i}" onchange="updateImportBtn()" style="margin-right:6px">
+      📊 <b>${f.patient_name}</b> (${f.ward}病区 · ${f.attending_doctor}) — ${f.defects_count}条缺陷${f.veto_count>0?' 🚨':''}
+      <span style="font-size:11px;color:var(--muted)">${f.path}</span>
+    </label>`;
+  });
+  document.getElementById('jsonResults').innerHTML = html || '<span style="font-size:12px;color:var(--muted)">未找到分析结果</span>';
+  updateImportBtn();
+}
+
+function updateImportBtn() {
+  const checked = document.querySelectorAll('.json-check:checked').length;
+  document.getElementById('btnImportResults').disabled = checked === 0;
+  document.getElementById('btnBatchAll').disabled = _searchData && _searchData.json.length === 0;
+}
+
+async function extractByPath(path) {
+  const status = document.getElementById('searchStatus');
+  status.textContent = '提取中...'; status.className = 'status-msg';
+  try {
+    const resp = await fetch(getApiBase() + '/api/file-action', {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({action:'extract', path:path})
+    });
+    const r = await resp.json();
+    if (r.success) {
+      status.textContent = '提取完成'; status.className = 'status-msg success';
+      doGlobalSearch(); // 刷新
+    } else {
+      throw new Error(r.error);
+    }
+  } catch(e) {
+    status.textContent = '提取失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+async function analyzeByPath(path) {
+  const status = document.getElementById('searchStatus');
+  status.textContent = 'AI 分析中（约15-30秒）...'; status.className = 'status-msg';
+  try {
+    const resp = await fetch(getApiBase() + '/api/file-action', {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({action:'analyze', path:path})
+    });
+    const r = await resp.json();
+    if (r.patient_name) {
+      fillFormFromAnalysis(r);
+      closeImportModal();
+    } else if (r.error) {
+      throw new Error(r.error);
+    }
+  } catch(e) {
+    status.textContent = '分析失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+async function importSearchResults() {
+  if (!_searchData) return;
+  const checked = [...document.querySelectorAll('.json-check:checked')].map(cb => parseInt(cb.dataset.idx));
+  if (checked.length === 0) return;
+  for (const idx of checked) {
+    const f = _searchData.json[idx];
+    try {
+      const resp = await fetch(getApiBase() + '/api/read-json?path=' + encodeURIComponent(f.path));
+      if (!resp.ok) continue;
+      const analysis = await resp.json();
+      if (!analysis.error) fillFormFromAnalysis(analysis);
+    } catch(e) { console.error(e); }
+  }
+  closeImportModal();
+}
+
+async function importAllSearchResults() {
+  if (!_searchData || !_searchData.json.length) return;
+  if (!confirm(`将全部 ${_searchData.json.length} 份分析结果导入台账？`)) return;
+  for (const f of _searchData.json) {
+    try {
+      const resp = await fetch(getApiBase() + '/api/read-json?path=' + encodeURIComponent(f.path));
+      if (!resp.ok) continue;
+      const analysis = await resp.json();
+      if (!analysis.error) fillFormFromAnalysis(analysis, true);
+    } catch(e) { console.error(e); }
+  }
+  closeImportModal();
+  if (ledger.length > 0) document.getElementById('ledgerSection').scrollIntoView({behavior:'smooth'});
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.add('hidden');
+}
+
+// ===== 一键全流程 =====
+async function runFullPipeline() {
+  const status = document.getElementById('pipelineStatus');
+  const btn = document.getElementById('btnPipeline');
+  if (!confirm('将自动执行：\n① 提取所有未处理的 XPS\n② 分析所有提取后未分析的病历\n③ 全部导入台账\n\n确定开始？')) return;
+
+  btn.disabled = true;
+  const log = (msg, cls) => { status.textContent = msg; status.className = 'status-msg ' + (cls || ''); };
+
+  try {
+    // Step 1: 提取 XPS
+    log('⏳ Step 1/3: 提取 XPS...');
+    const xpsResp = await fetch(getApiBase() + '/api/extract-all', { method: 'POST' });
+    const xpsData = await xpsResp.json();
+    log(`✅ Step 1/3: XPS 提取完成（${xpsData.success_count || 0} 份）`, 'success');
+
+    // Step 2: 分析待处理的病历
+    const extResp = await fetch(getApiBase() + '/api/extracted-list');
+    const extData = await extResp.json();
+    const pending = (extData.files || []).filter(f => !f.analyzed);
+    log(`⏳ Step 2/3: 分析 ${pending.length} 份病历...`);
+
+    for (let i = 0; i < pending.length; i++) {
+      log(`⏳ Step 2/3: 分析中 ${i+1}/${pending.length} — ${pending[i].name}`);
+      const resp = await fetch(getApiBase() + '/api/run-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file: pending[i].name })
+      });
+      if (!resp.ok) {
+        log(`⚠️ Step 2/3: ${pending[i].name} 分析失败，继续下一份...`, 'error');
+      }
+      if (i < pending.length - 1) await new Promise(r => setTimeout(r, 2000));
+    }
+    log('✅ Step 2/3: 全部分析完成', 'success');
+
+    // Step 3: 全部导入台账
+    log('⏳ Step 3/3: 导入台账...');
+    const listResp = await fetch(getApiBase() + '/api/analysis-list');
+    const listData = await listResp.json();
+    let imported = 0;
+    for (const a of (listData.analyses || [])) {
+      try {
+        const r2 = await fetch(getApiBase() + '/api/analysis?file=' + encodeURIComponent(a.filename));
+        const analysis = await r2.json();
+        if (!analysis.error) {
+          fillFormFromAnalysis(analysis, true);
+          imported++;
+        }
+      } catch(e) {}
+    }
+    log(`🎉 全流程完成！共导入 ${imported} 份病历到台账`, 'success');
+
+    refreshXPSList(); refreshExtractedList(); refreshAnalysisList();
+    closeImportModal();
+    if (ledger.length > 0) document.getElementById('ledgerSection').scrollIntoView({behavior:'smooth'});
+  } catch(e) {
+    log('❌ 全流程中断: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+}
+
+// ===== XPS 提取 =====
+async function refreshXPSList() {
+  const container = document.getElementById('xpsList');
+  const btnAll = document.getElementById('btnExtractAll');
+  const status = document.getElementById('xpsStatus');
+  container.innerHTML = '<span style="font-size:12px;color:var(--muted)">加载中...</span>';
+  btnAll.disabled = true;
+  try {
+    const resp = await fetch(getApiBase() + '/api/xps-list');
+    const data = await resp.json();
+    const files = data.files || [];
+    const xpsPath = data.path || '';
+    let html = '';
+    let totalPending = 0;
+    if (files.length === 0) {
+      html = `<div style="font-size:12px;color:var(--danger);padding:8px;background:#fff5f5;border-radius:4px">
+        📂 <b>${xpsPath}</b><br>此目录下暂无 .xps 文件，请将 HIS 导出的 XPS 文件放入此文件夹后刷新。
+      </div>`;
+    } else {
+      files.forEach(f => {
+        const id = ('xps_' + f.name).replace(/[^a-zA-Z0-9一-鿿]/g, '_');
+        if (f.extracted) {
+          html += `<div class="extracted-file"><span>📄 ${f.name}</span><span class="badge badge-done">✅ 已提取</span></div>`;
+        } else {
+          totalPending++;
+          html += `<div class="extracted-file">
+            <span>📄 ${f.name}</span>
+            <span class="badge badge-pending" id="${id}">⏳ 待提取</span>
+            <button class="btn-sm btn-warn" style="padding:2px 10px;font-size:11px" onclick="extractOneXPS('${f.name.replace(/'/g,"\\'")}','${id}')">📑 提取</button>
+          </div>`;
+        }
+      });
+    }
+    container.innerHTML = html;
+    btnAll.disabled = totalPending === 0;
+    btnAll.textContent = totalPending > 0 ? `📑 提取全部XPS (${totalPending}份)` : '📑 全部已提取 ✓';
+    status.innerHTML = data.total > 0
+      ? `共 ${data.total} 份 XPS，已提取 ${files.filter(f=>f.extracted).length} 份`
+      : `未找到 .xps 文件 — 请放入: <b>${xpsPath}</b>`;
+    status.className = data.total > 0 ? 'status-msg success' : 'status-msg error';
+  } catch(e) {
+    container.innerHTML = `<span style="font-size:12px;color:var(--danger)">❌ 加载失败: ${e.message}</span>`;
+  }
+}
+
+async function extractOneXPS(relPath, badgeId) {
+  const badge = document.getElementById(badgeId);
+  const status = document.getElementById('xpsStatus');
+  if (badge) { badge.textContent = '🔄 提取中...'; badge.className = 'badge badge-running'; }
+  status.textContent = '提取中...'; status.className = 'status-msg';
+  try {
+    const resp = await fetch(getApiBase() + '/api/extract-xps', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ file: relPath })
+    });
+    const r = await resp.json();
+    if (r?.success) {
+      if (badge) { badge.textContent = '✅ 已提取'; badge.className = 'badge badge-done'; }
+      status.textContent = `✅ 提取完成（${r.chars} 字符）`;
+      status.className = 'status-msg success';
+      refreshExtractedList();
+    } else {
+      throw new Error(r?.error || 'extract failed');
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = '❌ 失败'; badge.className = 'badge badge-pending'; }
+    status.textContent = '❌ 提取失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+async function extractAllXPS() {
+  const status = document.getElementById('xpsStatus');
+  const btnAll = document.getElementById('btnExtractAll');
+  if (!confirm('将提取所有未处理的 XPS 文件，确定？')) return;
+  btnAll.disabled = true; btnAll.textContent = '⏳ 提取中...';
+  status.textContent = '正在批量提取 XPS...'; status.className = 'status-msg';
+  try {
+    const resp = await fetch(getApiBase() + '/api/extract-all', { method: 'POST' });
+    const data = await resp.json();
+    status.textContent = `✅ 提取完成：${data.success_count}/${data.total} 份成功`;
+    status.className = 'status-msg success';
+    refreshXPSList();
+    refreshExtractedList();
+  } catch(e) {
+    status.textContent = '❌ 批量提取失败: ' + e.message;
+    status.className = 'status-msg error';
+    btnAll.disabled = false;
+  }
+}
+
+// ===== 已有分析结果 =====
+async function refreshAnalysisList() {
+  const sel = document.getElementById('analysisSelect');
+  const status = document.getElementById('analysisStatus');
+  const btnImport = document.getElementById('btnImportSelected');
+  const btnBatch = document.getElementById('btnBatchImport');
+  status.textContent = '加载中...'; status.className = 'status-msg';
+  btnImport.disabled = true; btnBatch.disabled = true;
+
+  try {
+    const resp = await fetch(getApiBase() + '/api/analysis-list');
+    const data = await resp.json();
+    const list = data.analyses || [];
+    if (list.length === 0) {
+      sel.innerHTML = '<option value="">— 暂无分析结果，请先运行 analyze_medical_records.py 或使用下方一键分析 —</option>';
+      status.textContent = '暂无分析结果'; status.className = 'status-msg';
+      return;
+    }
+    sel.innerHTML = '<option value="">— 选择一份分析结果 (' + list.length + ' 份可用) —</option>' +
+      list.map(a => `<option value="${a.filename}">${a.patient_name} (${a.ward}病区 · ${a.attending_doctor}) — ${a.defects_count}条缺陷${a.veto_count>0?' 🚨否决':''} ${a.pass?'✅':'⚠️'}</option>`).join('');
+    status.textContent = `共 ${list.length} 份分析结果可用`;
+    status.className = 'status-msg success';
+    btnBatch.disabled = false;
+  } catch(e) {
+    status.textContent = '❌ 无法连接服务器，请确认灵枢已启动（python main.py）';
+    status.className = 'status-msg error';
+  }
+}
+
+function onAnalysisSelect() {
+  const sel = document.getElementById('analysisSelect');
+  document.getElementById('btnImportSelected').disabled = !sel.value;
+}
+
+async function importSelectedAnalysis() {
+  const fname = document.getElementById('analysisSelect').value;
+  if (!fname) return;
+  const status = document.getElementById('analysisStatus');
+  status.textContent = '加载中...'; status.className = 'status-msg';
+  try {
+    const resp = await fetch(getApiBase() + '/api/analysis?file=' + encodeURIComponent(fname));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const analysis = await resp.json();
+    if (analysis.error) throw new Error(analysis.error);
+    fillFormFromAnalysis(analysis);
+    closeImportModal();
+  } catch(e) {
+    status.textContent = '❌ 加载失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+async function batchImportAll() {
+  const status = document.getElementById('analysisStatus');
+  if (!confirm('将所有分析结果直接导入台账？\n（会跳过表单填写，直接加入台账列表）')) return;
+  status.textContent = '批量导入中...'; status.className = 'status-msg';
+  try {
+    const resp = await fetch(getApiBase() + '/api/analysis-list');
+    const data = await resp.json();
+    const list = data.analyses || [];
+    let imported = 0;
+    for (const a of list) {
+      try {
+        const r2 = await fetch(getApiBase() + '/api/analysis?file=' + encodeURIComponent(a.filename));
+        const analysis = await r2.json();
+        if (analysis.error) continue;
+        fillFormFromAnalysis(analysis, true); // skipConfirm → addToLedger
+        imported++;
+      } catch(e) {}
+    }
+    status.textContent = `✅ 已导入 ${imported}/${list.length} 份到台账`;
+    status.className = 'status-msg success';
+    closeImportModal();
+    if (ledger.length > 0) document.getElementById('ledgerSection').scrollIntoView({behavior:'smooth'});
+  } catch(e) {
+    status.textContent = '❌ 批量导入失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+// ===== 一键分析 =====
+async function refreshExtractedList() {
+  const container = document.getElementById('extractedList');
+  const btnAll = document.getElementById('btnAnalyzeAll');
+  container.innerHTML = '<span style="font-size:12px;color:var(--muted)">加载中...</span>';
+  btnAll.disabled = true;
+  try {
+    const resp = await fetch(getApiBase() + '/api/extracted-list');
+    const data = await resp.json();
+    const files = data.files || [];
+    if (files.length === 0) {
+      container.innerHTML = '<span style="font-size:12px;color:var(--muted)">暂无待分析病历</span>';
+      return;
+    }
+    const pending = files.filter(f => !f.analyzed);
+    container.innerHTML = files.map(f => `
+      <div class="extracted-file">
+        <span>📄 ${f.name}</span>
+        ${f.analyzed
+          ? '<span class="badge badge-done">✅ 已分析</span>'
+          : `<span class="badge badge-pending" id="badge_${f.name.replace(/[^a-zA-Z0-9一-鿿]/g,'_')}">⏳ 待分析</span>
+             <button class="btn-sm btn-warn" style="padding:2px 10px;font-size:11px" onclick="analyzeOneFile('${f.name.replace(/'/g,"\\'")}')">🔬 分析</button>`}
+      </div>
+    `).join('');
+    btnAll.disabled = pending.length === 0;
+    if (pending.length > 0) btnAll.textContent = `⚡ 分析全部待处理 (${pending.length}份)`;
+    else btnAll.textContent = '⚡ 全部已分析完成 ✓';
+  } catch(e) {
+    container.innerHTML = `<span style="font-size:12px;color:var(--danger)">❌ 加载失败: ${e.message}</span>`;
+  }
+}
+
+async function analyzeOneFile(fname) {
+  const badgeId = 'badge_' + fname.replace(/[^a-zA-Z0-9一-鿿]/g, '_');
+  const badge = document.getElementById(badgeId);
+  const status = document.getElementById('runStatus');
+  if (badge) { badge.textContent = '🔄 分析中...'; badge.className = 'badge badge-running'; }
+
+  status.textContent = `正在分析 ${fname} ...（约15-30秒）`;
+  status.className = 'status-msg';
+
+  try {
+    const resp = await fetch(getApiBase() + '/api/run-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ file: fname })
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'HTTP ' + resp.status);
+    }
+    const analysis = await resp.json();
+    if (analysis.error) throw new Error(analysis.error);
+
+    if (badge) { badge.textContent = '✅ 已分析'; badge.className = 'badge badge-done'; }
+    status.textContent = `✅ ${analysis.patient_name} 分析完成！${(analysis.defects||[]).length}条缺陷`;
+    status.className = 'status-msg success';
+
+    // 自动填充表单
+    fillFormFromAnalysis(analysis);
+    refreshAnalysisList();
+    closeImportModal();
+  } catch(e) {
+    if (badge) { badge.textContent = '❌ 失败'; badge.className = 'badge badge-pending'; }
+    status.textContent = '❌ 分析失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+async function analyzeAllPending() {
+  const status = document.getElementById('runStatus');
+  try {
+    const resp = await fetch(getApiBase() + '/api/extracted-list');
+    const data = await resp.json();
+    const pending = (data.files || []).filter(f => !f.analyzed);
+    if (pending.length === 0) { status.textContent = '全部已分析完成'; return; }
+    if (!confirm(`将对 ${pending.length} 份病历逐一进行 AI 分析（每份约15-30秒），确定？`)) return;
+
+    for (let i = 0; i < pending.length; i++) {
+      status.textContent = `⏳ 分析中 ${i+1}/${pending.length}: ${pending[i].name}`;
+      await analyzeOneFile(pending[i].name);
+      if (i < pending.length - 1) {
+        status.textContent = `⏳ 等待2秒后分析下一份...`;
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+    status.textContent = `✅ 全部 ${pending.length} 份分析完成！`;
+    status.className = 'status-msg success';
+    refreshAnalysisList();
+  } catch(e) {
+    status.textContent = '❌ 批量分析失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+// ======================== 设置面板 ========================
+function openSettingsModal() {
+  document.getElementById('settingsModal').classList.remove('hidden');
+  loadSettings();
+}
+function closeSettingsModal() {
+  document.getElementById('settingsModal').classList.add('hidden');
+}
+async function loadSettings() {
+  try {
+    const resp = await fetch(getApiBase() + '/api/config');
+    const data = await resp.json();
+    document.getElementById('cfgApiUrl').value = data.api_url || '';
+    document.getElementById('cfgModel').value = data.model || '';
+    document.getElementById('cfgApiKey').value = data.api_key || '';  // 已脱敏的
+    document.getElementById('cfgStatus').textContent = '已加载当前配置';
+    document.getElementById('cfgStatus').className = 'status-msg';
+  } catch(e) {
+    document.getElementById('cfgStatus').textContent = '加载失败';
+    document.getElementById('cfgStatus').className = 'status-msg error';
+  }
+}
+async function saveSettings() {
+  const status = document.getElementById('cfgStatus');
+  const apiKey = document.getElementById('cfgApiKey').value.trim();
+  const model = document.getElementById('cfgModel').value.trim();
+  const apiUrl = document.getElementById('cfgApiUrl').value.trim();
+
+  // 如果 Key 是脱敏的（含***），且没修改，跳过保存 Key
+  const body = new URLSearchParams();
+  if (model) body.set('model', model);
+  if (apiUrl) body.set('api_url', apiUrl);
+  if (apiKey && !apiKey.includes('***')) body.set('api_key', apiKey);
+
+  try {
+    const resp = await fetch(getApiBase() + '/api/config', { method: 'POST', body });
+    const data = await resp.json();
+    if (data.success) {
+      status.textContent = '✅ 已保存，重启后生效';
+      status.className = 'status-msg success';
+    } else {
+      throw new Error(data.error || 'failed');
+    }
+  } catch(e) {
+    status.textContent = '❌ 保存失败: ' + e.message;
+    status.className = 'status-msg error';
+  }
+}
+
+// 初始统计
+updateCounts();
+</script>
+
+<!-- ========== 自动化导入弹窗 ========== -->
+<div class="modal-overlay hidden" id="importModal">
+<div class="modal-box">
+  <div class="modal-header">
+    🤖 病历质控自动化
+    <button class="modal-close" onclick="closeImportModal()">✕</button>
+  </div>
+  <div class="modal-body">
+
+    <!-- 已有分析结果 -->
+    <div class="modal-section">
+      <h4>📊 已有 AI 分析结果（从服务器加载）</h4>
+      <div style="display:flex;gap:6px">
+        <select id="analysisSelect" style="flex:1" onchange="onAnalysisSelect()">
+          <option value="">— 点击「刷新」加载 —</option>
+        </select>
+        <button class="btn-sm btn-info" onclick="refreshAnalysisList()">🔄 刷新</button>
+      </div>
+      <div class="status-msg" id="analysisStatus"></div>
+      <div class="modal-row" style="margin-top:6px">
+        <button class="btn-sm btn-primary" id="btnImportSelected" disabled onclick="importSelectedAnalysis()">📥 导入选中</button>
+        <button class="btn-sm btn-success" id="btnBatchImport" disabled onclick="batchImportAll()">📦 全部导入台账</button>
+      </div>
+    </div>
+
+    <!-- 🔍 全局搜索（主面板） -->
+    <div class="modal-section" style="background:#f0f4ff;border-radius:8px;padding:12px;border:2px solid #2471a3">
+      <h4 style="color:#2471a3;border:none;margin-bottom:6px">🔍 全局搜索 — 自动发现所有病历文件</h4>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">扫描整个项目目录，找到 XPS、已提取文本、AI分析结果。无需手动指定路径。</p>
+      <button class="btn-sm btn-info" id="btnSearch" onclick="doGlobalSearch()">🔍 搜索全部</button>
+      <span class="status-msg" id="searchStatus" style="margin-left:8px"></span>
+    </div>
+
+    <!-- 搜索结果 -->
+    <div id="searchResults" style="display:none">
+      <!-- XPS -->
+      <div class="modal-section">
+        <h4>📑 XPS 源文件 <span id="xpsCount"></span></h4>
+        <div id="xpsResults" style="max-height:150px;overflow-y:auto"></div>
+      </div>
+      <!-- TXT -->
+      <div class="modal-section">
+        <h4>📄 已提取文本 <span id="txtCount"></span></h4>
+        <div id="txtResults" style="max-height:150px;overflow-y:auto"></div>
+      </div>
+      <!-- JSON -->
+      <div class="modal-section">
+        <h4>📊 AI 分析结果 <span id="jsonCount"></span></h4>
+        <div id="jsonResults" style="max-height:150px;overflow-y:auto"></div>
+        <div class="modal-row" style="margin-top:6px">
+          <button class="btn-sm btn-primary" id="btnImportResults" disabled onclick="importSearchResults()">📥 导入选中</button>
+          <button class="btn-sm btn-success" id="btnBatchAll" disabled onclick="importAllSearchResults()">📦 全部导入台账</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 手动选文件（兜底） -->
+    <div class="modal-section">
+      <h4>📁 手动选择 JSON 文件</h4>
+      <input type="file" id="importFileInput2" multiple accept=".json" style="display:none" onchange="importAIResults(this)">
+      <button class="btn-sm" style="background:#666;color:#fff" onclick="document.getElementById('importFileInput2').click()">📂 浏览本地文件...</button>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ========== 设置弹窗 ========== -->
+<div class="modal-overlay hidden" id="settingsModal">
+<div class="modal-box" style="width:420px">
+  <div class="modal-header">
+    ⚙️ API 设置
+    <button class="modal-close" onclick="closeSettingsModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="modal-section">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">API 地址</label>
+      <input type="text" id="cfgApiUrl" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px" placeholder="https://api.deepseek.com/v1/chat/completions">
+    </div>
+    <div class="modal-section">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">模型名称</label>
+      <input type="text" id="cfgModel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px" placeholder="deepseek-chat">
+    </div>
+    <div class="modal-section">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">API Key</label>
+      <input type="password" id="cfgApiKey" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px" placeholder="sk-xxxx">
+    </div>
+    <div class="status-msg" id="cfgStatus"></div>
+    <div class="modal-row" style="margin-top:8px">
+      <button class="btn-sm btn-primary" onclick="saveSettings()">💾 保存</button>
+      <button class="btn-sm" style="background:#999;color:#fff" onclick="loadSettings()">🔄 加载当前配置</button>
+    </div>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

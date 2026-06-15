@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>灵枢 — AI掌纹溯源</title>
+<meta name="description" content="你的手掌，写着你的出厂设置。AI掌纹精灵，每日陪伴。">
+<meta name="theme-color" content="#0a1628">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="manifest" href="/assets/manifest.json">
+</head>
+<body>
+
+<!-- ============ 背景层 ============ -->
+<div class="bg-gradient" id="bgGradient"></div>
+<div class="bg-particles" id="bgParticles"></div>
+
+<!-- ============ 顶部栏 ============ -->
+<header class="topbar">
+  <div class="topbar-date" id="topbarDate">加载中...</div>
+  <div class="topbar-streak" id="topbarStreak">🔥 0天</div>
+</header>
+
+<!-- ============ 灵枢精灵区 ============ -->
+<section class="agent-area" id="agentArea">
+  <div class="agent-orb" id="agentOrb">
+    <div class="agent-glow"></div>
+    <div class="agent-core">
+      <span class="agent-emoji" id="agentEmoji">🧚</span>
+    </div>
+    <div class="agent-ripple" id="agentRipple"></div>
+  </div>
+  <div class="agent-bubble" id="agentBubble">
+    <p id="bubbleText">你好，我是灵枢~</p>
+  </div>
+  <div class="agent-status" id="agentStatus">点击下方话筒跟我说话</div>
+</section>
+
+<!-- ============ 主内容区（4个Tab页） ============ -->
+<main class="tab-content" id="tabContent">
+
+  <!-- Tab 0: 首页 — 黄历 + 每日概览 -->
+  <div class="tab-panel active" id="tab-home">
+    <div class="card almanac-card">
+      <div class="almanac-header">
+        <span class="almanac-icon">📅</span>
+        <span class="almanac-title">今日黄历</span>
+      </div>
+      <div class="almanac-body" id="almanacBody">
+        <div class="almanac-date" id="almanacDate">加载中...</div>
+        <div class="almanac-jianchu" id="almanacJianchu"></div>
+        <div class="almanac-yiji">
+          <div class="yi-row"><span class="yi-label yil">宜</span><span id="yiList">—</span></div>
+          <div class="ji-row"><span class="yi-label jil">忌</span><span id="jiList">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card checkin-card">
+      <div class="checkin-stats">
+        <div class="stat-item">
+          <div class="stat-num" id="streakCount">0</div>
+          <div class="stat-label">连续打卡</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="scanCount">0</div>
+          <div class="stat-label">掌纹扫描</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="weeklyChange">—</div>
+          <div class="stat-label">本周变化</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 1: 掌纹分析 -->
+  <div class="tab-panel" id="tab-palm">
+    <div class="camera-container" id="cameraContainer">
+      <video id="cameraVideo" autoplay playsinline muted></video>
+      <canvas id="cameraCanvas"></canvas>
+      <div class="camera-guide" id="cameraGuide">
+        <div class="guide-frame"></div>
+        <p>手掌平放，五指自然张开</p>
+      </div>
+      <button class="btn-switch-cam" onclick="switchCamera()">🔄</button>
+    </div>
+    <div class="camera-controls">
+      <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
+      <button class="btn btn-primary" id="btnCapture" onclick="capturePalm()">
+        📸 拍摄掌纹
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInput').click()">
+        🖼️ 从相册选择
+      </button>
+      <div class="age-input-row">
+        <label>年龄：</label>
+        <input type="number" id="ageInput" value="30" min="10" max="100">
+        <span>岁</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: 运势 -->
+  <div class="tab-panel" id="tab-fortune">
+    <div class="card">
+      <h3>📅 今日运势</h3>
+      <div class="fortune-form">
+        <label>今天天气怎么样？</label>
+        <input type="text" id="weatherInput" placeholder="如：晴天、下雨、阴天...">
+        <label>今天打算做什么？</label>
+        <input type="text" id="activityInput" placeholder="如：出门谈合作、在家休息...">
+        <button class="btn btn-primary" onclick="getFortune()">🔮 查看运势</button>
+      </div>
+      <div class="fortune-result" id="fortuneResult" style="display:none">
+        <div class="hexagram-display" id="hexagramDisplay"></div>
+        <div class="fortune-advice" id="fortuneAdvice"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: 树洞 -->
+  <div class="tab-panel" id="tab-companion">
+    <div class="card">
+      <h3>🌿 情绪树洞</h3>
+      <p class="card-desc">这里很安全，什么都可以说。灵枢会认真听。</p>
+      <div class="scenario-chips" id="scenarioChips">
+        <button class="chip" onclick="setScenario('general')">🌿 随便聊聊</button>
+        <button class="chip" onclick="setScenario('pua')">💔 情感困扰</button>
+        <button class="chip" onclick="setScenario('workplace')">🏢 职场压力</button>
+        <button class="chip" onclick="setScenario('study')">📚 学习焦虑</button>
+        <button class="chip" onclick="setScenario('life')">🌈 生活受挫</button>
+      </div>
+      <div class="input-row">
+        <button class="input-mic" id="companionMic" onclick="focusCompanionInput()" title="语音输入">
+          🎤
+        </button>
+        <input type="text" id="companionInput" class="input-field" placeholder="在这里写下你想说的..." autocomplete="off">
+        <button class="input-send" onclick="talkToCompanion()">发送</button>
+      </div>
+      <div class="companion-response" id="companionResponse" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Tab 4: 设置 -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="card">
+      <h3>🧚 灵枢的名字</h3>
+      <p class="card-desc">给灵枢改个名字，比如"小灵""健康助手""老中医"</p>
+      <div class="settings-form">
+        <label>名字</label>
+        <input type="text" id="cfgAgentName" placeholder="灵枢" value="灵枢" maxlength="10">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🧠 LLM 对话引擎</h3>
+      <p class="card-desc">接入大模型让灵枢真正智能对话。支持 DeepSeek / 豆包 / 通义千问等。</p>
+      <div class="settings-form">
+        <label>服务商</label>
+        <select id="cfgProvider" onchange="onProviderChange()">
+          <option value="deepseek">DeepSeek（推荐·便宜）</option>
+          <option value="doubao">豆包（字节跳动）</option>
+          <option value="qwen">通义千问（阿里）</option>
+          <option value="custom">自定义</option>
+        </select>
+        <label>API 地址</label>
+        <input type="text" id="cfgApiUrl" placeholder="https://api.deepseek.com/v1/chat/completions">
+        <label>API Key</label>
+        <input type="password" id="cfgApiKey" placeholder="sk-...">
+        <label>模型名称</label>
+        <input type="text" id="cfgModel" placeholder="deepseek-chat">
+        <label>创意度 (0=严谨 1=活泼)</label>
+        <input type="range" id="cfgTemp" min="0" max="1" step="0.1" value="0.8">
+        <span id="cfgTempVal">0.8</span>
+      </div>
+      <button class="btn btn-primary" onclick="saveLLMConfig()" style="width:100%;margin-top:12px">💾 保存配置</button>
+      <button class="btn btn-outline btn-sm" onclick="loadLLMConfig()" style="width:100%;margin-top:6px">📋 加载当前配置</button>
+      <div id="cfgStatus" style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:6px"></div>
+    </div>
+
+    <div class="card">
+      <h3>🎙️ 语音测试</h3>
+      <p class="card-desc">测试 edge-tts 神经网络语音效果</p>
+      <select id="voiceTestEmotion" style="margin-bottom:8px">
+        <option value="gentle">温柔女声 (Xiaoxiao)</option>
+        <option value="calm">沉稳男声 (Yunxi)</option>
+        <option value="story">说书人 (Yunjian)</option>
+        <option value="warm">温暖女声</option>
+      </select>
+      <button class="btn btn-outline" onclick="testVoice()" style="width:100%">🔊 播放测试语音</button>
+      <div id="voiceStatus" style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:4px"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ============ 底部导航 ============ -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="switchTab(0)" data-tab="0">
+    <span class="nav-icon">🏠</span>
+    <span class="nav-label">首页</span>
+  </button>
+  <button class="nav-btn" onclick="switchTab(1)" data-tab="1">
+    <span class="nav-icon">🖐️</span>
+    <span class="nav-label">掌纹</span>
+  </button>
+  <button class="nav-btn" onclick="switchTab(2)" data-tab="2">
+    <span class="nav-icon">📅</span>
+    <span class="nav-label">运势</span>
+  </button>
+  <button class="nav-btn" onclick="switchTab(3)" data-tab="3">
+    <span class="nav-icon">🌿</span>
+    <span class="nav-label">树洞</span>
+  </button>
+  <button class="nav-btn" onclick="switchTab(4)" data-tab="4">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label">设置</span>
+  </button>
+</nav>
+
+<!-- ============ 加载遮罩 ============ -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none">
+  <div class="loading-spinner"></div>
+  <p id="loadingText">灵枢正在分析...</p>
+</div>
+
+<!-- ============ 分享卡片弹窗 ============ -->
+<div class="modal-overlay" id="shareModal" style="display:none">
+  <div class="modal-content">
+    <canvas id="shareCanvas" width="800" height="1200"></canvas>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="downloadShareCard()">💾 保存图片</button>
+      <button class="btn btn-outline" onclick="closeShareModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Scripts ============ -->
+<script src="/js/storage.js?v=11"></script>
+<script src="/js/almanac.js?v=11"></script>
+<script src="/js/fortune.js?v=11"></script>
+<script src="/js/constitution.js?v=11"></script>
+<script src="/js/companion.js?v=11"></script>
+<script src="/js/voice.js?v=11"></script>
+<script src="/js/agent.js?v=11"></script>
+<script src="/js/camera.js?v=11"></script>
+<script src="/js/share.js?v=11"></script>
+<script src="/js/app.js?v=11"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
+// PWA install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "appId": "com.lingshu.palmai",
+  "appName": "灵枢",
+  "webDir": "static",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://localhost:8080",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0a1628",
+      "showSpinner": false
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#0a1628"
+    }
+  }
+}

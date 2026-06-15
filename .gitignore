@@ -1,0 +1,25 @@
+# Build artifacts
+dist/
+build/
+*.exe
+*.spec
+__pycache__/
+node_modules/
+
+# API Keys and secrets
+config.json
+.env
+*.pem
+
+# Patient data
+**/????/
+**/???????/
+*.xps
+*_analysis.json
+*_extracted/
+data/
+
+# IDE
+.claude/
+.vscode/
+.idea/
